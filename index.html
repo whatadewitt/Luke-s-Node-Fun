@@ -1,0 +1,146 @@
+<script src="/socket.io/socket.io.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function() {
+	
+	var socket = io.connect('http://localhost:1337');
+	
+	socket.on('welcome', function (msg) {
+		
+		var my_id = msg.id;
+		
+		$('<div/>', {
+			id: 't' + msg.id + "_hold",
+			"class": "left"
+		}).prependTo('#teams'); // not the prettiest, but at least our team will always be in the same spot
+		
+		$('<ul/>', {
+			id: 't' + msg.id,
+			"class": "team connectedSortable"
+		}).appendTo('#t' + msg.id + '_hold');
+		
+		$('#t' + msg.id + "_hold").prepend("<h3>My Team</h3>");
+		
+		var users = JSON.parse(msg.users);
+		for (var i = 0; i < users.length - 1; i++) { // we'll always be the last user hence the -1
+			addTeam(users[i]);
+		}
+		
+		if (msg.current == my_id) {
+			myTurn();
+		} else {
+			$('#t' + msg.current + "_hold h3").addClass("mygo");
+		}
+		
+		socket.on('new player', function(msg) {
+			addTeam(msg.player); 
+		});
+		
+		socket.on('pick made', function(msg) {
+			$('.mygo').removeClass('mygo');
+			movePlayer(msg.player, msg.player_id);
+			if (msg.nextpick == my_id) {
+				myTurn();
+			} else {
+				$('#t' + msg.nextpick + "_hold h3").addClass("mygo");
+			}
+		});
+		
+		function movePlayer(team, player) {
+			$("#" + player).appendTo('#t' + team);
+		}
+		
+		function addTeam(id) {
+			$('<div/>', {
+				id: 't' + id + "_hold",
+				"class": "left"
+			}).appendTo('#teams');
+			
+			$('<ul/>', {
+				id: 't' + id,
+				"class": "team connectedSortable"
+			}).appendTo('#t' + id + '_hold');
+			
+			var length = $('#teams div').length;
+			$('#t' + id + "_hold").prepend("<h3>Team " + length + "</h3>");
+		}
+		
+		function myTurn() {
+			$('#t' + my_id + "_hold h3").addClass("mygo");
+			
+			$( "#firstbase" ).sortable({
+				placeholder: "ui-state-highlight",
+				connectWith: "#t" + my_id,
+				remove: function(event, ui) { 
+					makePick(ui.item.attr('id'));
+				}
+			}).disableSelection();
+			
+			$( "#thirdbase" ).sortable({
+				placeholder: "ui-state-highlight",
+				connectWith: "#t" + my_id,
+				remove: function(event, ui) { 
+					makePick(ui.item.attr('id'));
+				}
+			}).disableSelection();
+			
+			$( "#firstbase" ).sortable("enable");
+			$( "#thirdbase" ).sortable("enable");
+			
+			$('.team').sortable().disableSelection();
+		}
+		
+		function makePick(id) {
+			$('#firstbase').sortable( "disable" );
+			$('#thirdbase').sortable( "disable" );
+			$('.mygo').removeClass('mygo');
+			socket.emit('pickmade', id);
+		}
+		
+	});
+});
+</script>
+
+<link rel="stylesheet" href="http://localhost:1337/css/ui-lightness/jquery-ui-1.8.17.custom.css" />
+
+<style>
+#firstbase, #thirdbase, .team { list-style-type: none; margin: 0; padding: 0; float: left; margin-right: 10px; }
+#firstbase li, #thirdbase li, .team li { margin: 0 5px 5px 5px; padding: 5px; font-size: 1.2em; width: 120px; }
+.clear { clear: both; }
+.left { float: left; }
+.team { width: 140px; margin: 0 10px 10px 0; padding: 10px; }
+.team.connectedSortable { border: #333 thin solid; }
+.team ul { min-height: 200px; }
+.mygo { color: #00ff00; }
+</style>
+
+<title>My Player, Your Player</title>
+
+<body>
+<div class="demo">
+
+<div id="teams">
+</div>
+
+<div class="clear">
+<ul id="firstbase" class="connectedSortable">
+	<li id="player1" class="ui-state-default">A. Pujols</li>
+	<li id="player2" class="ui-state-default">M. Cabrera</li>
+	<li id="player3" class="ui-state-default">J. Votto</li>
+	<li id="player4" class="ui-state-default">A. Gonzalez</li>
+	<li id="player5" class="ui-state-default">M. Teixeira</li>
+</ul>
+
+<ul id="thirdbase" class="connectedSortable">
+	<li id="player6" class="ui-state-highlight">J. Bautista</li>
+	<li id="player7" class="ui-state-highlight">H. Ramirez</li>
+	<li id="player8" class="ui-state-highlight">D. Wright</li>
+	<li id="player9" class="ui-state-highlight">E. Longoria</li>
+	<li id="player10" class="ui-state-highlight">A. Rodriguez</li>
+</ul>
+</div>
+
+</div>
+</body>
